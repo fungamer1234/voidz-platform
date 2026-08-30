@@ -63,44 +63,83 @@ function boot() {
 }
 
 function afterBoot() {
-  $("boot").classList.add("hidden");
+  const boot = $("boot");
+  if (boot) {
+    boot.style.display = "none";
+    boot.remove();
+  }
   if (!data || !data.onboarded) showOnboard();
   else { data.stats.logins += 1; save(data); showApp(); }
 }
 
+function validName(raw) {
+  const v = (raw || "").trim().replace(/\s+/g, " ");
+  if (v.length < 2 || v.length > 20) return { ok: false, error: "Use 2–20 characters." };
+  if (!/^[A-Za-z0-9_ ]+$/.test(v)) return { ok: false, error: "Letters, numbers, spaces, and underscores only." };
+  if (["admin", "voidz", "system", "mod", "owner"].includes(v.toLowerCase())) {
+    return { ok: false, error: "That name is reserved." };
+  }
+  return { ok: true, name: v };
+}
+
 function showOnboard() {
-  $("onboard").style.display = "block";
+  const root = $("onboard");
+  root.style.display = "block";
   let step = 1;
-  const name = (data && data.displayName) || "Player";
-  const render = () => {
-    $("onboard").innerHTML = `<div class="onboard-inner">
-      <div class="dots">${[1,2,3,4,5].map((n) => `<i class="${n <= step ? "on" : ""}"></i>`).join("")}</div>
-      ${step === 1 ? `<h2>Welcome to VOIDZ</h2><p>A universe of games in your browser. This profile lives on this device — not a Roblox account, and we never ask for a password.</p>` : ""}
-      ${step === 2 ? `<h2>Choose a display name</h2><p>3–16 letters, numbers, or underscores.</p><input id="name-in" maxlength="16" value="${name.replace(/[^\w]/g, "").slice(0, 16) || "Player"}">` : ""}
-      ${step === 3 ? `<h2>Pick a look</h2><p>Hue for your avatar in every game.</p><input id="hue" type="range" min="0" max="360" value="262" style="width:60%">` : ""}
-      ${step === 4 ? `<h2>Starter grant</h2><p>+250 VoidCoins to spend in the shop.</p>` : ""}
-      ${step === 5 ? `<h2>You're in.</h2><p>Home is live. Discover a title and hit Play — the match is 3D, in this tab.</p>` : ""}
-      <div class="row" style="margin-top:24px">
-        ${step > 1 && step < 5 ? `<button class="btn ghost" id="back">Back</button>` : ""}
-        <span class="spacer"></span>
-        <button class="btn accent" id="next">${step === 5 ? "Enter VOIDZ" : step === 4 ? "Collect" : "Continue"}</button>
-      </div>
-      <p id="on-err" style="color:var(--danger)"></p>
-    </div>`;
-    $("back")?.addEventListener("click", () => { step -= 1; render(); });
-    $("next").addEventListener("click", () => {
-      if (step === 2) {
-        const v = ($("name-in").value || "").trim();
-        if (!/^[\w]{3,16}$/.test(v) || ["admin", "voidz", "system"].includes(v.toLowerCase())) {
-          $("on-err").textContent = "Use 3–16 letters, numbers, or underscores.";
-          return;
-        }
-        data = fresh(v);
+  let chosen = "";
+  let hue = 262;
+  const goNext = () => {
+    if (step === 1) {
+      const check = validName($("name-in")?.value);
+      if (!check.ok) {
+        $("on-err").textContent = check.error;
+        $("name-in")?.focus();
+        return;
       }
-      if (step === 3) data.avatar.hue = Number($("hue").value);
-      if (step < 5) { step += 1; render(); }
-      else { data.onboarded = true; save(data); $("onboard").style.display = "none"; showApp(); }
-    });
+      chosen = check.name;
+      data = fresh(chosen);
+    }
+    if (step === 2) data.avatar.hue = Number($("hue")?.value || hue);
+    if (step < 4) {
+      step += 1;
+      render();
+    } else {
+      data.onboarded = true;
+      data.displayName = chosen || data.displayName;
+      save(data);
+      root.style.display = "none";
+      showApp();
+    }
+  };
+  const render = () => {
+    root.innerHTML = `<div class="onboard-inner">
+      <div class="dots">${[1,2,3,4].map((n) => `<i class="${n <= step ? "on" : ""}"></i>`).join("")}</div>
+      ${step === 1 ? `<h2>Welcome to VOIDZ</h2>
+        <p>A universe of games in your browser. Pick a display name to continue.</p>
+        <label for="name-in" style="display:block;margin:18px 0 8px;font-weight:700">Display name</label>
+        <input id="name-in" type="text" inputmode="text" autocomplete="nickname" maxlength="20" placeholder="Type a name" value="">` : ""}
+      ${step === 2 ? `<h2>Pick a look</h2><p>Hue for your avatar in every game.</p><input id="hue" type="range" min="0" max="360" value="${hue}" style="width:60%">` : ""}
+      ${step === 3 ? `<h2>Starter grant</h2><p>+250 VoidCoins to spend in the shop.</p>` : ""}
+      ${step === 4 ? `<h2>You're in, ${chosen}.</h2><p>Home is live. Discover a title and hit Play — the match is 3D, in this tab.</p>` : ""}
+      <div class="row" style="margin-top:24px">
+        ${step > 1 ? `<button type="button" class="btn ghost" id="back">Back</button>` : ""}
+        <span class="spacer"></span>
+        <button type="button" class="btn accent" id="next">${step === 4 ? "Enter VOIDZ" : step === 3 ? "Collect" : "Continue"}</button>
+      </div>
+      <p id="on-err" style="color:var(--danger);min-height:1.2em"></p>
+    </div>`;
+    $("back")?.addEventListener("click", (e) => { e.preventDefault(); step -= 1; render(); });
+    $("next")?.addEventListener("click", (e) => { e.preventDefault(); goNext(); });
+    const input = $("name-in");
+    if (input) {
+      input.value = chosen;
+      setTimeout(() => input.focus(), 50);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); goNext(); }
+      });
+      input.addEventListener("input", () => { chosen = input.value; });
+    }
+    $("hue")?.addEventListener("input", (e) => { hue = Number(e.target.value); });
   };
   render();
 }
@@ -257,6 +296,14 @@ function renderPage() {
   } else if (page === "profile") {
     main.innerHTML = `<h1 class="page">${data.displayName}</h1>
       <p class="sub">Joined ${new Date(data.created).toLocaleDateString()}</p>
+      <div class="panel" style="margin-bottom:16px">
+        <label for="rename" style="display:block;margin-bottom:8px;font-weight:700">Display name</label>
+        <div class="row">
+          <input id="rename" type="text" maxlength="20" value="${data.displayName}">
+          <button type="button" class="btn accent" id="save-name">Save name</button>
+        </div>
+        <p id="name-err" style="color:var(--danger)"></p>
+      </div>
       <div class="stats">
         <div class="stat"><b>${fmt(data.coins)}</b><span>VoidCoins</span></div>
         <div class="stat"><b>${data.stats.plays}</b><span>Matches</span></div>
@@ -270,6 +317,15 @@ function renderPage() {
       </div>
       <h3 class="shelf-title">Favorites</h3>
       <div class="shelf">${data.favorites.map((id) => GAMES.find((g) => g.id === id)).filter(Boolean).map(card).join("") || `<div class="empty">Favorite a title from its page.</div>`}</div>`;
+    $("save-name").onclick = () => {
+      const check = validName($("rename").value);
+      if (!check.ok) { $("name-err").textContent = check.error; return; }
+      data.displayName = check.name;
+      save(data);
+      toast("Name saved");
+      renderApp();
+    };
+    $("rename").addEventListener("keydown", (e) => { if (e.key === "Enter") $("save-name").click(); });
   } else if (page === "settings") {
     main.innerHTML = `<h1 class="page">Settings</h1>
       <div class="panel">
@@ -278,8 +334,13 @@ function renderPage() {
         <p style="margin-top:12px">Performance mode reduces pixel ratio and shadows.</p>
         <label><input id="perf" type="checkbox"> Performance mode</label>
         <p class="sub" style="margin-top:18px">VOIDZ browser build 1.1 · progress saves in this browser only.</p>
+        <button type="button" class="btn ghost" id="reset-profile" style="margin-top:12px">Reset profile (shows name setup again)</button>
       </div>`;
     $("vol").oninput = (e) => { data.settings.volume = Number(e.target.value); save(data); };
+    $("reset-profile").onclick = () => {
+      localStorage.removeItem(KEY);
+      location.reload();
+    };
   }
   main.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => {
     selected = GAMES.find((g) => g.id === b.dataset.open);
