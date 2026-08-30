@@ -1,12 +1,12 @@
 # VOIDZ
 
-A complete Roblox gaming platform: boot, in-game profile onboarding, home, discovery, **15 playable multiplayer games**, search, avatar, inventory, currency, friends, parties, quests, daily rewards, notifications, settings, DataStores, and a 3D lobby.
+**Play in the browser:** https://fungamer1234.github.io/voidz-platform/
+
+A Roblox-style gaming platform that runs in your browser — home, discover, avatar, inventory, VoidCoins, and **15 playable 3D games**. Not a Roblox.com upload. Profiles save in this browser.
 
 Platform name: **VOIDZ**  
 Currency: **VoidCoins (VC)**  
 Version: **1.1.0**
-
-This is not a Roblox login clone. Players still join through Roblox. VOIDZ only stores an in-game profile (display name, avatar cosmetics, inventory, settings). It never asks for a Roblox password.
 
 ---
 
